@@ -1,4 +1,4 @@
-# TTS Assistant
+# Open AI Whisper TTS Assistant
 
 ## Overview
 TTS Assistant is an interactive AI system that combines speech recognition, natural language processing, and text-to-speech capabilities. It allows users to have spoken conversations with an AI assistant powered by OpenAI's GPT models.
@@ -17,7 +17,7 @@ TTS Assistant is an interactive AI system that combines speech recognition, natu
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/tts_assistant.git
+   git clone https://github.com/amponce/tts_assistant.git
    cd tts_assistant
    ```
 
