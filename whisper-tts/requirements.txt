@@ -1,0 +1,6 @@
+openai
+SpeechRecognition
+pydub
+simpleaudio
+numpy
+PyAudio
