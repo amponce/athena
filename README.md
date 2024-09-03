@@ -26,6 +26,11 @@ TTS Assistant is an interactive AI system that combines speech recognition, natu
    pip install -r requirements.txt
    ```
 
+**Note:** If you encounter issues with PyAudio, use Homebrew to install PortAudio. On macOS, you can install PortAudio by opening your terminal and running the following command:
+```
+brew install portaudio
+```
+
 3. Set up your OpenAI API key as an environment variable:
    ```
    export OPENAI_API_KEY='your-api-key-here'
