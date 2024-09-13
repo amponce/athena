@@ -7,4 +7,4 @@ PyAudio
 asyncio
 lru_cache
 groq
-openInterpreter
+open-interpreter
