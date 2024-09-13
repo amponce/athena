@@ -1,0 +1,7 @@
+.env
+.DS_Store
+interpreter.md
+openAI.md
+groq_llm.py
+backup.py
+__pycache__
