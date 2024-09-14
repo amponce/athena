@@ -1,7 +1,3 @@
-Your README is clear and concise! I've made a few minor adjustments for consistency, clarity, and completeness. Here's the updated version:
-
----
-
 # Athena: Advanced AI Assistant
 
 ## Overview
