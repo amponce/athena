@@ -1,24 +1,85 @@
 import os
 import io
+import json
 import time
+import re
 import tempfile
 from openai import OpenAI
 import speech_recognition as sr
 from pydub import AudioSegment
 from pydub.playback import play
+from tavily import TavilyClient
 from config import *
-import interpreter
+from integrations.interpreter_integration import start_interpreter_session
+from functools import lru_cache
+from datetime import datetime
 
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
 assistant_id = None
 thread_id = None
 
-# Initialize Open Interpreter
-interpreter.api_key = OPENAI_API_KEY
-interpreter.model = OPENAI_MODEL
-interpreter.auto_run = INTERPRETER_AUTO_RUN
+# Initialize Tavily client
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
+def get_search_date_range():
+    now = datetime.now()
+    current_month = now.strftime("%B")
+    current_year = now.year
+    next_year = current_year + 1
+    return f"({current_month} OR September) ({current_year} OR {next_year})"
+
+@lru_cache(maxsize=100)
+@lru_cache(maxsize=100)
+def tavily_search(query):
+    date_range = get_search_date_range()
+    updated_query = f"{query} {date_range}"
+    print(f"Performing Tavily search for query: {updated_query}")
+    try:
+        search_result = tavily_client.get_search_context(updated_query, search_depth="advanced", max_tokens=8000)
+        print(f"Tavily search result type: {type(search_result)}")
+        print(f"Tavily search result: {search_result[:500]}...")  # Print first 500 characters of the result
+        
+        if isinstance(search_result, str):
+            search_result = json.loads(search_result)
+        
+        summary = summarize_search_results(search_result, query)  # Pass the original query here
+        return json.dumps({"summary": summary, "full_results": search_result})
+    except Exception as e:
+        print(f"Error in Tavily search: {e}")
+        return json.dumps({"error": str(e)})
+
+def summarize_search_results(search_results, query):
+    if not isinstance(search_results, list):
+        return "Sorry, I couldn't find any relevant information."
+    
+    current_year = datetime.now().year
+    next_year = current_year + 1
+    
+    relevant_results = []
+    for result in search_results:
+        content = result.get('content', '')
+        url = result.get('url', '')
+        
+        # Check if the content mentions the current or next year
+        if str(current_year) in content or str(next_year) in content:
+            relevant_results.append((content, url))
+    
+    if not relevant_results:
+        return f"I couldn't find any horror movies specifically for September {current_year} or {next_year}. Would you like me to search for horror movies in general?"
+    
+    summary = f"Here are some exciting horror movies coming up:\n\n"
+    for content, url in relevant_results[:3]:  # Limit to top 3 results for brevity
+        # Extract a relevant sentence or two
+        sentences = re.split(r'(?<=[.!?])\s+', content)
+        relevant_text = ' '.join(sentences[:2])  # Take first two sentences
+        
+        summary += f"• {relevant_text}\n"
+    
+    summary += f"\nThese are just a few of the upcoming releases. Would you like more details on any of these movies?"
+    
+    return summary
+    
 def get_or_create_thread():
     global thread_id
     if thread_id:
@@ -42,18 +103,51 @@ def initialize_assistant():
     if ASSISTANT_ID:
         try:
             assistant = client.beta.assistants.retrieve(ASSISTANT_ID)
-            print(f"Using existing assistant with ID: {assistant.id}")
+            print(f"Updating existing assistant with ID: {assistant.id}")
+            assistant = client.beta.assistants.update(
+                assistant_id=ASSISTANT_ID,
+                instructions=ATHENA_INSTRUCTIONS,
+                model=OPENAI_MODEL,
+                tools=[{
+                    "type": "function",
+                    "function": {
+                        "name": "tavily_search",
+                        "description": "Search the web for recent and relevant information.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "The search query to use."},
+                            },
+                            "required": ["query"]
+                        }
+                    }
+                }]
+            )
             assistant_id = assistant.id
             return assistant_id
         except Exception as e:
-            print(f"Error retrieving assistant: {e}")
+            print(f"Error updating assistant: {e}")
     
+    # If no existing assistant, create a new one
     try:
         assistant = client.beta.assistants.create(
             name="Athena",
             instructions=ATHENA_INSTRUCTIONS,
             model=OPENAI_MODEL,
-            tools=ATHENA_TOOLS
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "tavily_search",
+                    "description": "Search the web for recent and relevant information.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "The search query to use."},
+                        },
+                        "required": ["query"]
+                    }
+                }
+            }]
         )
         print(f"New assistant created with ID: {assistant.id}")
         assistant_id = assistant.id
@@ -62,6 +156,29 @@ def initialize_assistant():
         print(f"Error creating assistant: {e}")
         return None
 
+def wait_for_run_completion(thread_id, run_id):
+    while True:
+        time.sleep(1)
+        run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+        print(f"Current run status: {run.status}")
+        if run.status == 'requires_action':
+            print(f"Run requires action: {run.required_action}")
+        if run.status in ['completed', 'failed', 'requires_action']:
+            return run
+
+def submit_tool_outputs(thread_id, run_id, tool_calls):
+    tool_outputs = []
+    for tool_call in tool_calls:
+        if tool_call.function.name == "tavily_search":
+            query = json.loads(tool_call.function.arguments)["query"]
+            search_result = tavily_search(query)
+            tool_outputs.append({
+                "tool_call_id": tool_call.id,
+                "output": search_result
+            })
+    return tool_outputs
+
+@lru_cache(maxsize=100)
 def analyze_audio(user_prompt):
     if not client.api_key or not assistant_id:
         return "OpenAI functionalities are disabled or assistant is not initialized. Cannot analyze audio."
@@ -79,18 +196,22 @@ def analyze_audio(user_prompt):
 
         run = client.beta.threads.runs.create(
             thread_id=thread_id,
-            assistant_id=assistant_id,
-            instructions=f"""Remember to address the user as {USER_NAME} and maintain your friendly, supportive demeanor.
-            If the user wants to start an Open Interpreter session, inform them to say 'Start Open Interpreter'."""
+            assistant_id=assistant_id
         )
 
         while True:
-            run_status = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            if run_status.status == 'completed':
+            run = wait_for_run_completion(thread_id, run.id)
+            if run.status == 'requires_action':
+                tool_outputs = submit_tool_outputs(thread_id, run.id, run.required_action.submit_tool_outputs.tool_calls)
+                run = client.beta.threads.runs.submit_tool_outputs(
+                    thread_id=thread_id,
+                    run_id=run.id,
+                    tool_outputs=tool_outputs
+                )
+            elif run.status == 'completed':
                 break
-            elif run_status.status in ['failed', 'cancelled', 'expired']:
-                return f"Run failed with status: {run_status.status}"
-            time.sleep(1)
+            elif run.status == 'failed':
+                return f"Run failed: {run.last_error}"
 
         messages = client.beta.threads.messages.list(
             thread_id=thread_id,
@@ -108,28 +229,6 @@ def analyze_audio(user_prompt):
     except Exception as e:
         print(f"Error in analyze_audio: {e}")
         return f"I'm sorry, {USER_NAME}, I encountered an error while processing your request. How can I help you differently?"
-
-def open_interpreter_session():
-    print(f"Starting Open Interpreter session. Say 'Exit Interpreter' to end the session.")
-    play_audio("Entering Open Interpreter mode. Say 'Exit Interpreter' to end the session.", voice="onyx")
-
-    while True:
-        user_input = get_audio_input()
-        if user_input is None:
-            print("No input detected. Waiting for your command in Open Interpreter mode.")
-            continue
-        if user_input.lower() == "exit interpreter":
-            play_audio("Exiting Open Interpreter mode.", voice="onyx")
-            return "Open Interpreter session ended."
-
-        try:
-            response = interpreter.chat(user_input)
-            print("Open Interpreter:", response)
-            play_audio(response, voice="onyx")  # Using a different voice for Open Interpreter
-        except Exception as e:
-            error_message = f"Error in Open Interpreter: {str(e)}"
-            print(error_message)
-            play_audio(error_message, voice="onyx")
 
 def play_audio(text, voice="nova"):
     try:
@@ -156,12 +255,8 @@ def get_audio_input():
         print("Listening for speech...")
         recognizer.adjust_for_ambient_noise(source, duration=0.5)
         try:
-            audio = recognizer.listen(
-                source,
-                timeout=SPEECH_RECOGNITION_TIMEOUT,  # Consider increasing this value
-                phrase_time_limit=SPEECH_RECOGNITION_PHRASE_TIME_LIMIT  # And this one
-            )
-            print("Processing...")
+            audio = recognizer.listen(source, timeout=SPEECH_RECOGNITION_TIMEOUT, phrase_time_limit=SPEECH_RECOGNITION_PHRASE_TIME_LIMIT)
+            print("Audio captured, processing...")
         except sr.WaitTimeoutError:
             print("No speech detected within the timeout period.")
             return None
@@ -172,15 +267,16 @@ def get_audio_input():
             print(f"Transcribed audio: {transcript}")
             return transcript
         else:
-            print("No speech detected or transcription failed.")
+            print("Transcription failed. Please try speaking again.")
             return None
     except sr.UnknownValueError:
-        print("Speech recognition could not understand the audio.")
+        print("Speech recognition could not understand the audio. Please try again.")
         return None
     except sr.RequestError as e:
         print(f"Could not request results from speech recognition service; {e}")
         return None
 
+@lru_cache(maxsize=100)
 def transcribe_audio(audio):
     if client is None:
         print("OpenAI client not initialized. Skipping transcription.")
@@ -200,7 +296,7 @@ def transcribe_audio(audio):
             print(f"Time to transcribe audio: {time.time() - start_time:.2f} seconds")
 
         os.unlink(temp_audio_path)
-        return transcript
+        return transcript if transcript else None
     except Exception as e:
         print(f"Error in transcribe_audio: {e}")
         return None
@@ -214,43 +310,35 @@ def main():
         print("Failed to initialize assistant. Exiting.")
         return
 
-    # Add the welcome message here
-    welcome_message = f"Hey {USER_NAME}! What's up!"
-    print(f"Athena: {welcome_message}")
-    play_audio(welcome_message)
-
     print("Listening for speech...")
     while True:
         try:
             user_prompt = get_audio_input()
             if user_prompt is None:
-                print("No input detected. Waiting for your command.")
+                print("Listening again...")
                 continue
             if user_prompt.lower() in ["exit", "quit", "goodbye"]:
                 print(f"Athena: Goodbye, {USER_NAME}! Have a great day.")
-                play_audio(f"Goodbye, {USER_NAME}! Have a great day.")
                 break
-
+            
             print(f"{USER_NAME}:", user_prompt)
-
+            
             if user_prompt.lower() == "start open interpreter":
-                response = open_interpreter_session()
+                response = start_interpreter_session(get_audio_input, play_audio)
                 print("Athena:", response)
                 play_audio(response)
             else:
                 analysis = analyze_audio(user_prompt)
                 print("Athena:", analysis)
                 play_audio(analysis)
-
+            
             time.sleep(1)  # Small delay after playing audio
         except KeyboardInterrupt:
             print(f"\nThank you for chatting with Athena. Goodbye, {USER_NAME}!")
-            play_audio(f"Thank you for chatting with me. Goodbye, {USER_NAME}!")
             break
         except Exception as e:
             print(f"An error occurred: {e}. Athena is ready to assist with something else.")
-            play_audio(f"An error occurred: {e}. I'm ready to assist with something else.")
-
+        
         print("Listening for speech...")
 
 if __name__ == "__main__":

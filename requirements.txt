@@ -8,3 +8,7 @@ asyncio
 lru_cache
 groq
 open-interpreter
+<<<<<<< HEAD
+=======
+tavily-python
+>>>>>>> 8400158 (add example env and tavily)
