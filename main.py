@@ -29,7 +29,7 @@ def get_search_date_range():
     next_year = current_year + 1
     return f"({current_month} OR September) ({current_year} OR {next_year})"
 
-@lru_cache(maxsize=100)
+
 @lru_cache(maxsize=100)
 def tavily_search(query):
     date_range = get_search_date_range()
