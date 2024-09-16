@@ -9,3 +9,8 @@ lru_cache
 groq
 open-interpreter
 tavily-python
+pytest
+python-dotenv
+openai-whisper
+sounddevice 
+torch
