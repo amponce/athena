@@ -1,5 +1,5 @@
 import torch
-import whisper
+import whisper 
 
 def test_cuda():
     print(f"PyTorch version: {torch.__version__}")
