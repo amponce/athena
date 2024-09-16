@@ -6,3 +6,6 @@ groq_llm.py
 backup.py
 __pycache__
 tavily.md
+docs/
+.pytest_cache/
+__pycache__/*
