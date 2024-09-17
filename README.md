@@ -47,13 +47,12 @@ Athena is an advanced AI assistant that combines speech recognition, natural lan
 
 3. Set up your environment variables:
    Create a `.env` file based on the `.env.example` in the root directory and add your API keys:
-   ```bash
-  # OpenAI API Configuration
+
+   ```
    OPENAI_API_KEY=OPENAI_API_KEY
    ASSISTANT_ID=ASSISTANT_ID
    # https://app.tavily.com/
    TAVILY_API_KEY=TAVILY_API_KEY
-   # what would you like the AI to call you?
    USER_NAME=Aaron
    OPENAI_MODEL=gpt-4o
    SPEECH_RECOGNITION_TIMEOUT=15
