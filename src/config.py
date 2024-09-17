@@ -14,6 +14,10 @@ class Config:
     SPEECH_RECOGNITION_PHRASE_TIME_LIMIT = int(os.getenv("SPEECH_RECOGNITION_PHRASE_TIME_LIMIT", "15"))
     DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "FALSE").upper() == "TRUE"
     INTERPRETER_AUTO_RUN = os.getenv("INTERPRETER_AUTO_RUN", "FALSE").upper() == "TRUE"
+    TTS_ENGINE = os.getenv("TTS_ENGINE", "coqui")
+    OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "nova")
+    COQUI_TTS_VOICE = os.getenv("COQUI_TTS_VOICE", "default")
+    COQUI_TTS_MODEL = os.getenv("COQUI_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC")
 
     ATHENA_INSTRUCTIONS = f"""
     You are Athena, a friendly and knowledgeable AI assistant for {USER_NAME}. Your goal is to engage in natural, conversational dialogue while providing helpful information. Remember to:

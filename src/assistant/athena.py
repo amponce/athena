@@ -28,7 +28,7 @@ class Athena:
         self.openai_client.initialize_assistant()
 
         # Greeting
-        greeting = f"Hello {self.config.USER_NAME}! I'm Athena, your AI assistant. How can I help you today?"
+        greeting = f"Hello {self.config.USER_NAME}! Athena Here. What's on your mind?"
         logger.info(f"Athena: {greeting}")
         self.text_to_speech.play_audio(greeting)
 
