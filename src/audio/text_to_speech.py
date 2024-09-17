@@ -1,4 +1,6 @@
 from TTS.api import TTS
+import io
+from openai import OpenAI
 import torch
 from pydub import AudioSegment
 from pydub.playback import play

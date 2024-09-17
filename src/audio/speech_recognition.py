@@ -11,7 +11,7 @@ class SpeechRecognizer:
         self.config = config
         logger.info("Loading Whisper model...")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = whisper.load_model("medium.en").to(self.device)
+        self.model = whisper.load_model("medium").to(self.device)
         self.sample_rate = 16000
         logger.info(f"Whisper model loaded successfully on {self.device}.")
 
