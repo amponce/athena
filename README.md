@@ -80,7 +80,12 @@ If you are using freemodels like coqui, you may need to install additional depen
 ```bash
 brew install espeak-ng
 ```
+Windows users can download the installer from here:
 
+```
+https://github.com/espeak-ng/espeak-ng/releases/download/1.51/espeak-ng-X64.msi
+
+```
 
 ## Key Components
 

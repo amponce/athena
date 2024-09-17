@@ -16,9 +16,6 @@ sounddevice
 torch
 pytest-timeout 
 TTS
+pyttsx3
 torch
-torchvision
-torchaudio
-transformers
-diffusers
 phonemizer
