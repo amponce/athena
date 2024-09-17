@@ -48,16 +48,39 @@ Athena is an advanced AI assistant that combines speech recognition, natural lan
 3. Set up your environment variables:
    Create a `.env` file based on the `.env.example` in the root directory and add your API keys:
    ```bash
-   OPENAI_API_KEY=your_openai_api_key
-   TAVILY_API_KEY=your_tavily_api_key
-   ASSISTANT_ID=your_assistant_id
+  # OpenAI API Configuration
+   OPENAI_API_KEY=OPENAI_API_KEY
+   ASSISTANT_ID=ASSISTANT_ID
+   # https://app.tavily.com/
+   TAVILY_API_KEY=TAVILY_API_KEY
+   # what would you like the AI to call you?
+   USER_NAME=Aaron
+   OPENAI_MODEL=gpt-4o
+   SPEECH_RECOGNITION_TIMEOUT=15
+   SPEECH_RECOGNITION_PHRASE_TIME_LIMIT=10
+   DEBUG_LOGGING=true
+   INTERPRETER_AUTO_RUN=false
+   TTS_ENGINE=coqui # or openai 
+   ## TTS 
+   USE_WHISPER=false # or true will download the whisper model
+   OPENAI_TTS_VOICE="nova"
+   ## Coqui TTS
+   COQUI_TTS_VOICE="p335"
+   COQUI_TTS_MODEL="tts_models/en/vctk/vits"
    ```
 
-**Note:** If you encounter issues with PyAudio, install PortAudio. On macOS, you can use Homebrew:
+**Note:** 
+
+If you encounter issues with PyAudio, install PortAudio. On macOS, you can use Homebrew:
    ```bash
    brew install portaudio
+   
    ```
+If you are using freemodels like coqui, you may need to install additional dependencies:
 
+```bash
+brew install espeak-ng
+```
 
 
 ## Key Components

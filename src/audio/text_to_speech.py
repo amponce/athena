@@ -1,6 +1,5 @@
 from TTS.api import TTS
 import io
-from openai import OpenAI
 import torch
 from pydub import AudioSegment
 from pydub.playback import play
@@ -18,7 +17,16 @@ class TextToSpeech:
         # Coqui TTS setup
         elif self.tts_engine == 'coqui':
             self.coqui_model = config.COQUI_TTS_MODEL
-            self.coqui_tts = TTS(model_name=self.coqui_model, progress_bar=False, gpu=torch.cuda.is_available())
+            self.coqui_tts = TTS(
+                model_name=self.coqui_model,
+                progress_bar=False,
+                gpu=torch.cuda.is_available()
+            )
+            # Handle speaker ID if it's a multi-speaker model
+            if hasattr(self.coqui_tts, 'speakers'):
+                self.coqui_speaker = config.COQUI_TTS_VOICE
+            else:
+                self.coqui_speaker = None
 
     def play_audio(self, text, speaker_wav=None):
         if self.tts_engine == 'openai':
@@ -41,10 +49,24 @@ class TextToSpeech:
 
             if speaker_wav:
                 # If speaker_wav is provided, use it for voice cloning (if the model supports it)
-                self.coqui_tts.tts_to_file(text=text, speaker_wav=speaker_wav, file_path=audio_file)
+                self.coqui_tts.tts_to_file(
+                    text=text,
+                    speaker_wav=speaker_wav,
+                    file_path=audio_file
+                )
+            elif self.coqui_speaker:
+                # Use specified speaker ID for multi-speaker models
+                self.coqui_tts.tts_to_file(
+                    text=text,
+                    speaker=self.coqui_speaker,
+                    file_path=audio_file
+                )
             else:
-                # Single-speaker or basic multispeaker
-                self.coqui_tts.tts_to_file(text=text, file_path=audio_file)
+                # Single-speaker model
+                self.coqui_tts.tts_to_file(
+                    text=text,
+                    file_path=audio_file
+                )
 
             # Play the generated audio
             audio = AudioSegment.from_wav(audio_file)

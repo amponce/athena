@@ -7,9 +7,10 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     USER_NAME = os.getenv("USER_NAME", "User")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
     ASSISTANT_ID = os.getenv("ASSISTANT_ID")
     THREAD_ID = os.getenv("THREAD_ID")
+    USE_WHISPER = os.getenv("USE_WHISPER", "FALSE").upper() == "TRUE"
     SPEECH_RECOGNITION_TIMEOUT = int(os.getenv("SPEECH_RECOGNITION_TIMEOUT", "5"))
     SPEECH_RECOGNITION_PHRASE_TIME_LIMIT = int(os.getenv("SPEECH_RECOGNITION_PHRASE_TIME_LIMIT", "15"))
     DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "FALSE").upper() == "TRUE"

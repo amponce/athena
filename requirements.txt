@@ -15,3 +15,10 @@ openai-whisper
 sounddevice 
 torch
 pytest-timeout 
+TTS
+torch
+torchvision
+torchaudio
+transformers
+diffusers
+phonemizer
