@@ -5,6 +5,7 @@ from ..assistant.thread_manager import ThreadManager
 from ..search.tavily_client import TavilyClient
 from ..audio.speech_recognition import SpeechRecognizer
 from ..audio.text_to_speech import TextToSpeech
+from ..integrations.sports_buddy import SportsBuddy
 from ..utils.logger import logger
 from ..config import Config
 from datetime import datetime, timedelta
@@ -21,6 +22,7 @@ class Athena:
         self.interrupt_queue = queue.Queue()
         self.is_speaking = False
         self.is_dormant = False
+        self.sports_buddy = SportsBuddy(config) if config.SPORTS_BUDDY_ENABLED else None
 
     def run(self):
         logger.info(f"Initializing Athena, {self.config.USER_NAME}'s personal AI companion...")
@@ -68,8 +70,11 @@ class Athena:
                     self.interrupt_queue.put(user_prompt)
                     continue
 
-                analysis = self.analyze_audio(user_prompt)
-                self.speak_response(analysis)
+                if "sports buddy" in user_prompt.lower():
+                    response = self.handle_sports_buddy(user_prompt)
+                else:
+                    response = self.analyze_audio(user_prompt)
+                self.speak_response(response)
             
             except KeyboardInterrupt:
                 logger.info(f"\nThank you for chatting with Athena. Goodbye, {self.config.USER_NAME}!")
@@ -78,6 +83,22 @@ class Athena:
                 logger.error(f"An error occurred: {e}. Athena is ready to assist with something else.")
             
             logger.info("Listening for speech...")
+
+    def handle_sports_buddy(self, user_prompt):
+        if not self.sports_buddy:
+            return "Sports Buddy is not enabled."
+        
+        if "start" in user_prompt.lower():
+            return self.sports_buddy.start()
+        elif "stop" in user_prompt.lower():
+            return self.sports_buddy.stop()
+        elif "status" in user_prompt.lower():
+            return self.sports_buddy.status()
+        elif "check frame" in user_prompt.lower():
+            analysis = self.sports_buddy.analyze_frame("What's happening in the game right now?")
+            return f"Here's what I see in the latest frame: {analysis}"
+        else:
+            return "I didn't understand that Sports Buddy command. You can say 'start', 'stop', 'status', or 'check frame'."
 
     def speak_response(self, response):
         def speak_thread():

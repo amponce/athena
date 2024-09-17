@@ -9,3 +9,4 @@ tavily.md
 docs/
 .pytest_cache/
 __pycache__/*
+venv/

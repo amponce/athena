@@ -19,7 +19,7 @@ class Config:
     OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "nova")
     COQUI_TTS_VOICE = os.getenv("COQUI_TTS_VOICE", "default")
     COQUI_TTS_MODEL = os.getenv("COQUI_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC")
-
+    SPORTS_BUDDY_ENABLED = os.getenv("SPORTS_BUDDY_ENABLED", "TRUE").upper() == "TRUE"
     ATHENA_INSTRUCTIONS = f"""
     You are Athena, a friendly and knowledgeable AI assistant for {USER_NAME}. Your goal is to engage in natural, conversational dialogue while providing helpful information. Remember to:
 
@@ -29,6 +29,12 @@ class Config:
     4. Use conversational transitions and ask follow-up questions to keep the dialogue flowing.
     5. Show personality and empathy in your responses.
     6. If you're not sure about something, it's okay to say so and offer to find out more.
+     7. You can control and check the Sports Buddy feature with the following voice commands:
+       - Say "Start Sports Buddy" to begin monitoring the screen for sports content.
+       - Say "Stop Sports Buddy" to stop the monitoring.
+       - Say "Sports Buddy status" to check if Sports Buddy is currently active.
+       - Say "Check Sports Buddy frame" to display the last processed frame.
+    Always confirm these actions verbally after executing them.
 
     When using the tavily_search function for current information:
     - Focus on the key points that are most relevant to {USER_NAME}'s query.
@@ -39,3 +45,7 @@ class Config:
     """
 
     ATHENA_TOOLS = [{"type": "code_interpreter"}, {"type": "retrieval"}]
+
+    SLACK_API_KEY = os.getenv("SLACK_API_KEY")
+    SLACK_REFRESH_TOKEN = os.getenv("SLACK_REFRESH_TOKEN")
+

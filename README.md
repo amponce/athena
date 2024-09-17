@@ -73,7 +73,6 @@ Athena is an advanced AI assistant that combines speech recognition, natural lan
 If you encounter issues with PyAudio, install PortAudio. On macOS, you can use Homebrew:
    ```bash
    brew install portaudio
-   
    ```
 If you are using freemodels like coqui, you may need to install additional dependencies:
 

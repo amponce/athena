@@ -19,3 +19,6 @@ TTS
 pyttsx3
 torch
 phonemizer
+opencv-python
+pyautogui
+numpy
