@@ -1,10 +1,13 @@
 import threading
 import queue
+import os
 from ..assistant.openai_client import OpenAIClient
 from ..assistant.thread_manager import ThreadManager
 from ..search.tavily_client import TavilyClient
 from ..audio.speech_recognition import SpeechRecognizer
 from ..audio.text_to_speech import TextToSpeech
+from ..utils.image_utils import view_images_in_folder
+from ..utils.text_utils import clean_text_for_tts
 from ..utils.logger import logger
 from ..config import Config
 from datetime import datetime, timedelta
@@ -22,6 +25,10 @@ class Athena:
         self.is_speaking = False
         self.is_dormant = False
 
+    def speak(self, text):
+        cleaned_text = clean_text_for_tts(text)
+        self.text_to_speech.play_audio(cleaned_text)
+
     def run(self):
         logger.info(f"Initializing Athena, {self.config.USER_NAME}'s personal AI companion...")
         logger.info(f"Using model: {self.config.OPENAI_MODEL}")
@@ -30,36 +37,32 @@ class Athena:
         # Greeting
         greeting = f"Hello {self.config.USER_NAME}! Athena Here. What's on your mind?"
         logger.info(f"Athena: {greeting}")
-        self.text_to_speech.play_audio(greeting)
+        self.speak(greeting)
 
         logger.info("Listening for speech...")
         while True:
             try:
                 self.refresh_date_if_needed()
+                if self.is_dormant:
+                    self.listen_for_wake_up()
+                    continue
+
                 user_prompt = self.speech_recognizer.get_audio_input()
                 if user_prompt is None:
                     logger.info("Listening again...")
                     continue
 
-                if self.is_dormant:
-                    if "wake up" in user_prompt.lower():
-                        self.is_dormant = False
-                        wake_message = f"I'm awake, {self.config.USER_NAME}. How can I assist you?"
-                        logger.info(f"Athena: {wake_message}")
-                        self.text_to_speech.play_audio(wake_message)
-                    continue
-
-                if user_prompt.lower() in ["exit", "quit", "goodbye"]:
+                if self.is_command(user_prompt, ["exit", "quit", "end conversation"]):
                     farewell = f"Goodbye, {self.config.USER_NAME}! Have a great day."
                     logger.info(f"Athena: {farewell}")
-                    self.text_to_speech.play_audio(farewell)
+                    self.speak(farewell)
                     break
 
-                if user_prompt.lower() in ["standby", "sleep"]:
+                if self.is_command(user_prompt, ["sleep mode", "standby"]):
                     self.is_dormant = True
-                    dormant_message = "Entering standby mode. Say 'wake up' when you need me again."
+                    dormant_message = "Entering standby mode. Say 'control' when you need me again."
                     logger.info(f"Athena: {dormant_message}")
-                    self.text_to_speech.play_audio(dormant_message)
+                    self.speak(dormant_message)
                     continue
 
                 logger.info(f"{self.config.USER_NAME}: {user_prompt}")
@@ -79,6 +82,17 @@ class Athena:
             
             logger.info("Listening for speech...")
 
+    def listen_for_wake_up(self):
+        logger.info("In sleep mode, waiting for wake-up command...")
+        while self.is_dormant:
+            wake_up_prompt = self.speech_recognizer.get_audio_input()
+            if wake_up_prompt and "control" in wake_up_prompt.lower():
+                self.is_dormant = False
+                wake_message = f"I'm awake, {self.config.USER_NAME}. How can I assist you?"
+                logger.info(f"Athena: {wake_message}")
+                self.speak(wake_message)
+                break
+
     def speak_response(self, response):
         def speak_thread():
             self.is_speaking = True
@@ -89,19 +103,26 @@ class Athena:
         speak_thread = threading.Thread(target=speak_thread)
         speak_thread.start()
 
-        while speak_thread.is_alive():
-            try:
-                interrupt = self.interrupt_queue.get(timeout=0.1)
-                if interrupt:
-                    self.text_to_speech.stop_audio()
-                    logger.info(f"Interrupted: {interrupt}")
-                    speak_thread.join()
-                    return interrupt
-            except queue.Empty:
-                pass
+        self.listen_for_interrupt(speak_thread)
 
-        speak_thread.join()
-        return None
+    def listen_for_interrupt(self, speak_thread):
+        logger.info("Listening for interrupt command...")
+        while speak_thread.is_alive():
+            interrupt = self.speech_recognizer.get_audio_input()
+            if self.is_command(interrupt, ["stop speaking", "shut up"]):
+                self.text_to_speech.stop_audio()  # Ensure this method exists
+                logger.info("Speech interrupted by user.")
+                speak_thread.join()
+                self.speak("How can I assist you further?")
+                break
+
+    def is_command(self, user_input, command_phrases):
+        if user_input:
+            user_input_lower = user_input.lower()
+            for phrase in command_phrases:
+                if phrase in user_input_lower:
+                    return True
+        return False
 
     def refresh_date_if_needed(self):
         current_time = datetime.now()

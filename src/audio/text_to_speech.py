@@ -1,4 +1,5 @@
 from TTS.api import TTS
+from openai import OpenAI
 import io
 import torch
 from pydub import AudioSegment
@@ -33,6 +34,10 @@ class TextToSpeech:
             self._play_openai_tts(text)
         elif self.tts_engine == 'coqui':
             self._play_coqui_tts(text, speaker_wav)
+
+    def stop_audio(self):
+        # Code to stop audio playback
+        self.tts_engine.stop()
 
     def _play_openai_tts(self, text):
         response = self.client.audio.speech.create(
